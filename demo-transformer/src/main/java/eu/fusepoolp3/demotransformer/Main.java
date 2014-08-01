@@ -17,7 +17,7 @@ public class Main {
 
         //DictionaryMatcher.getInstance();
 
-        server.start(new PipelineTransformer());
+        server.start(new DemoTransformer());
 
         server.join();
     }
