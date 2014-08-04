@@ -29,16 +29,18 @@ import org.apache.clerezza.rdf.ontologies.SIOC;
  */
 public class DemoTransformer extends RdfGeneratingExtractor {
 
+
+    
     @Override
     protected TripleCollection generateRdf(HttpRequestEntity entity) throws IOException {
         final String queryString = entity.getRequest().getQueryString();
-        final String data = IOUtils.toString(entity.getData(), "UTF-8");
+        final String original = IOUtils.toString(entity.getData(), "UTF-8");
         final TripleCollection result = new SimpleMGraph();  
         final GraphNode node = new GraphNode(new BNode(), result);
         GraphNode nodes;
         
 //        System.out.println(queryString);
-//        System.out.println(data);
+//        System.out.println(original);
        
         HashMap<String,String> queryParams = new HashMap<>();
         
@@ -49,34 +51,51 @@ public class DemoTransformer extends RdfGeneratingExtractor {
                 param = params[i].split("=", 2);
                 queryParams.put(param[0], param[1]);
             }
+        }        
+
+        // language string to translate from
+        String from = queryParams.get("from");
+        
+        // language string to translate to
+        String to = queryParams.get("to");
+        
+        // language to translate from
+        Language fromLanguage = Language.fromString(from);
+        if(fromLanguage == null) {
+            fromLanguage = Language.AUTO_DETECT;
         }
         
-        ////////////
-        //  TODO!!!!!!!!
-        ///////////
+        // language to translate to
+        Language toLanguage = Language.fromString(to);
+        if(toLanguage == null) {
+            throw new RuntimeException("No language was supplied to translate to!");
+        }
         
-        Translate.setClientId("CLIENT_ID_HERE");
-        Translate.setClientSecret("CLIENT_SECRET_HERE");
-
-        // Translate an english string to spanish
-        String englishString = "Hello World!";
-        String spanishTranslation;
+        // translated text
+        String translation;
+        
+        // tanslate original text
         try {
-            spanishTranslation = Translate.execute(englishString, Language.SPANISH);
+            translation = Translate.execute(original, fromLanguage, toLanguage);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
 
-        System.out.println("Original english phrase: " + englishString);
-        System.out.println("Translated spanish phrase: " + spanishTranslation);
+//        System.out.println("Original phrase: " + original);
+//        System.out.println("Translated phrase: " + translation);
         
-        String language = queryParams.get("language");
-        String text = data;
 
-        if (text != null && !text.isEmpty()) {
+        if (original != null && !original.isEmpty()) {
             node.addProperty(RDF.type, new UriRef("http://example.org/ontology#TextDescription"));
-            node.addPropertyValue(SIOC.content, text);
-            node.addPropertyValue(new UriRef("http://example.org/ontology#textLength"), text.length());
+            node.addPropertyValue(SIOC.content, original);
+            node.addPropertyValue(new UriRef("http://example.org/ontology#textLength"), original.length());
+            
+            nodes = new GraphNode(new BNode(), result);
+            nodes.addProperty(RDF.type, new UriRef("http://example.org/ontology#LanguageAnnotation"));
+            nodes.addPropertyValue(new UriRef("http://example.org/ontology#fromLanguage"), fromLanguage.toString());
+            nodes.addPropertyValue(new UriRef("http://example.org/ontology#toLanguage"), toLanguage.toString());
+            nodes.addPropertyValue(SIOC.content, translation);
+            nodes.addPropertyValue(new UriRef("http://example.org/ontology#textLength"), translation.length());
         }
         
         return result;
